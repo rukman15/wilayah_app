@@ -1,8 +1,12 @@
 <?php
-// Halaman demo: provinsi dari data.json, kota dari get_kota.php.
+// Halaman demo: provinsi dari data.json, kota dari get_kota.php, dengan pencarian.
 $data = json_decode(file_get_contents(__DIR__ . '/data.json'), true);
 $provinsi = $data['provinsi'];
 usort($provinsi, fn($a, $b) => strcmp($a['nama'], $b['nama']));
+$provinsiJson = json_encode(
+    array_map(fn($p) => ['id' => (int) $p['id'], 'nama' => $p['nama']], $provinsi),
+    JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP
+);
 ?>
 <!doctype html>
 <html lang="id">
@@ -23,8 +27,9 @@ usort($provinsi, fn($a, $b) => strcmp($a['nama'], $b['nama']));
   .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px; }
   label { display:block; font-weight:600; font-size:14px; margin:12px 0 6px; }
   label:first-child { margin-top:0; }
-  select { width:100%; padding:12px; font-size:16px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--text); }
-  select:disabled { opacity:.5; }
+  input[type="search"], select { width:100%; box-sizing:border-box; padding:12px; font-size:16px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--text); }
+  input[type="search"] { margin-bottom:6px; }
+  input[type="search"]:disabled, select:disabled { opacity:.5; }
   .hasil { margin-top:20px; padding:12px; border-radius:8px; background:var(--bg); font-size:14px; min-height:20px; }
   .badge { display:inline-block; font-size:12px; color:var(--accent); margin-bottom:12px; }
 </style>
@@ -33,36 +38,59 @@ usort($provinsi, fn($a, $b) => strcmp($a['nama'], $b['nama']));
 <main>
   <span class="badge">DEMO PHP • data lengkap (JSON)</span>
   <h1>Pilih Provinsi dan Kota</h1>
-  <p class="note">Kota otomatis menyesuaikan provinsi yang dipilih.</p>
+  <p class="note">Ketik untuk mencari, kota otomatis menyesuaikan provinsi yang dipilih.</p>
 
   <div class="card">
-    <label for="provinsi">Provinsi</label>
-    <select id="provinsi">
-      <option value="">-- Pilih provinsi --</option>
-      <?php foreach ($provinsi as $p): ?>
-        <option value="<?= (int) $p['id'] ?>"><?= htmlspecialchars($p['nama'], ENT_QUOTES, 'UTF-8') ?></option>
-      <?php endforeach; ?>
-    </select>
+    <label for="cariProv">Cari provinsi</label>
+    <input type="search" id="cariProv" placeholder="Ketik nama provinsi..." autocomplete="off">
+    <select id="provinsi" aria-label="Provinsi"></select>
 
-    <label for="kota">Kota / Kabupaten</label>
-    <select id="kota" disabled>
-      <option value="">-- Pilih provinsi dulu --</option>
-    </select>
+    <label for="cariKota">Cari kota / kabupaten</label>
+    <input type="search" id="cariKota" placeholder="Ketik nama kota..." autocomplete="off" disabled>
+    <select id="kota" disabled aria-label="Kota atau kabupaten"></select>
 
     <div class="hasil" id="hasil">Belum ada pilihan.</div>
   </div>
 </main>
 
 <script>
-  const selProv = document.getElementById("provinsi");
-  const selKota = document.getElementById("kota");
-  const hasil   = document.getElementById("hasil");
+  const PROVINSI = <?= $provinsiJson ?>;
+  let daftarKota = [];
+
+  const cariProv = document.getElementById("cariProv");
+  const cariKota = document.getElementById("cariKota");
+  const selProv  = document.getElementById("provinsi");
+  const selKota  = document.getElementById("kota");
+  const hasil    = document.getElementById("hasil");
+
+  // Isi ulang dropdown dengan daftar yang sudah difilter.
+  // Pilihan yang sedang aktif tetap dipilih jika masih ada di hasil filter.
+  function isiDropdown(sel, daftar, placeholder, kata) {
+    const cari = kata.trim().toLowerCase();
+    const hasilFilter = daftar.filter(x => x.nama.toLowerCase().includes(cari));
+    const nilaiLama = sel.value;
+
+    sel.innerHTML = "";
+    sel.add(new Option(hasilFilter.length ? placeholder : "Tidak ada yang cocok", ""));
+    hasilFilter.forEach(x => sel.add(new Option(x.nama, x.id)));
+
+    if (hasilFilter.some(x => String(x.id) === nilaiLama)) {
+      sel.value = nilaiLama;
+    }
+  }
 
   function resetKota(teks) {
+    daftarKota = [];
+    cariKota.value = "";
+    cariKota.disabled = true;
     selKota.innerHTML = "";
     selKota.add(new Option(teks, ""));
     selKota.disabled = true;
   }
+
+  cariProv.addEventListener("input", () => {
+    isiDropdown(selProv, PROVINSI, "-- Pilih provinsi --", cariProv.value);
+  });
 
   selProv.addEventListener("change", async () => {
     const provId = selProv.value;
@@ -78,22 +106,28 @@ usort($provinsi, fn($a, $b) => strcmp($a['nama'], $b['nama']));
     try {
       const res = await fetch("get_kota.php?provinsi=" + encodeURIComponent(provId));
       if (!res.ok) throw new Error("HTTP " + res.status);
-      const daftar = await res.json();
+      daftarKota = await res.json();
 
-      selKota.innerHTML = "";
-      selKota.add(new Option("-- Pilih kota --", ""));
-      daftar.forEach(k => selKota.add(new Option(k.nama, k.id)));
+      isiDropdown(selKota, daftarKota, "-- Pilih kota --", "");
       selKota.disabled = false;
+      cariKota.disabled = false;
     } catch (e) {
       resetKota("Gagal memuat kota");
       hasil.textContent = "Terjadi error: " + e.message;
     }
   });
 
+  cariKota.addEventListener("input", () => {
+    isiDropdown(selKota, daftarKota, "-- Pilih kota --", cariKota.value);
+  });
+
   selKota.addEventListener("change", () => {
     hasil.textContent = "Provinsi: " + selProv.options[selProv.selectedIndex].text
       + " | Kota: " + selKota.options[selKota.selectedIndex].text;
   });
+
+  // Isi awal dropdown provinsi
+  isiDropdown(selProv, PROVINSI, "-- Pilih provinsi --", "");
 </script>
 </body>
 </html>
