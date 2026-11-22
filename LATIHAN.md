@@ -21,6 +21,23 @@ Centang kotak `[ ]` kalau latihannya sudah dicoba.
 - [ ] **reverse-engineer-anything**: "Pakai REA untuk analisis aplikasi JavaScript di `latihan/contoh-app`. Jelaskan endpoint dan alur datanya beserta evidence-nya."
 - [ ] "Pakai REA untuk mengaudit `latihan/contoh-app` dengan audit-release-exposure."
 
+### Android (REA + JADX)
+
+Persiapan, sekali per sesi baru:
+1. Jalankan `scripts/pasang-jadx.sh`. Skrip ini mengunduh JADX headless MCP 0.7.1 ke `~/.cache/rea/` dan mengecek SHA-256-nya.
+2. Taruh file APK di `latihan/android/`, misalnya `latihan/android/app.apk`. Pakai APK buatan sendiri atau aplikasi open source (misalnya dari F-Droid). File `.apk` tidak ikut di-commit.
+3. Kalau tool Android belum muncul, restart sesi supaya server REA membaca `REA_JADX_MCP_JAR`.
+
+Latihan:
+- [ ] "Cek kesiapan REA untuk Android dengan `rea doctor --provider jadx`."
+- [ ] "Pakai REA `inspect_android_package` untuk `latihan/android/app.apk`. Jelaskan nama paket, izin, dan activity yang ada."
+- [ ] "Cari class yang berhubungan dengan login atau network dengan `search_android_classes`."
+- [ ] "Decompile method `onCreate` dari MainActivity dengan `inspect_android_method`."
+- [ ] "Siapa saja yang memanggil method itu? Pakai `trace_android_references`."
+- [ ] "Cek tanda tangan APK dengan `inspect_apk_signature`."
+- [ ] "Apakah APK ini memakai library native (.so)? Pakai `inspect_android_jni_bindings`."
+- [ ] Lanjutan, di komputer sendiri dengan HP/emulator via ADB: "Jalankan aplikasinya dengan `start_adb_app`, lalu baca `read_adb_logcat` dan ambil `capture_adb_screen`."
+
 ## 3. Grafik dan halaman (Artifact)
 
 - [ ] **dataviz**: "Buat grafik penjualan per bulan per provinsi dari `latihan/data/penjualan.csv`."

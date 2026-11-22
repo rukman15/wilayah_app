@@ -2,7 +2,10 @@
   "mcpServers": {
     "rea": {
       "command": "npx",
-      "args": ["-y", "rea-agents@6.10.1", "mcp"]
+      "args": ["-y", "rea-agents@6.10.1", "mcp"],
+      "env": {
+        "REA_JADX_MCP_JAR": "${HOME}/.cache/rea/jadx-headless-mcp-0.7.1-all.jar"
+      }
     }
   }
 }
