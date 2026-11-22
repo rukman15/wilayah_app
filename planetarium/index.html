@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#05070f">
+  <title>Langit Malam</title>
+  <style>
+    :root {
+      --panel: rgba(12, 16, 30, 0.82);
+      --border: rgba(140, 160, 220, 0.22);
+      --text: #e6eaf5;
+      --muted: #94a0bd;
+      --accent: #7fb2ff;
+      --active: rgba(127, 178, 255, 0.22);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #05070f; color: var(--text);
+      font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+    canvas { display: block; width: 100vw; height: 100vh; touch-action: none; cursor: grab; }
+    canvas:active { cursor: grabbing; }
+    .bar { position: fixed; left: 0; right: 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+      padding: 10px max(16px, env(safe-area-inset-left)); pointer-events: none; }
+    .bar > * { pointer-events: auto; }
+    #atas { top: 0; justify-content: space-between; }
+    #bawah { bottom: 0; justify-content: center; padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+    .kotak { background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+    .grup { display: flex; gap: 2px; padding: 3px; }
+    button { background: transparent; color: var(--text); border: 0; border-radius: 7px; padding: 7px 10px;
+      font: inherit; cursor: pointer; min-width: 36px; white-space: nowrap; }
+    button:hover { background: rgba(255,255,255,0.08); }
+    button[aria-pressed="true"] { background: var(--active); color: #fff; }
+    button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+    #judul { padding: 8px 12px; }
+    #judul b { font-weight: 600; }
+    #judul small { display: block; color: var(--muted); font-size: 12px; }
+    #cari { background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 10px;
+      padding: 9px 12px; font: inherit; width: min(240px, 46vw); }
+    #waktu { padding: 6px 12px; text-align: center; min-width: 170px; }
+    #waktu small { display: block; color: var(--muted); font-size: 12px; }
+    #info { position: fixed; right: 16px; top: 70px; width: min(300px, calc(100vw - 32px)); padding: 14px 16px; display: none; }
+    #info h2 { margin: 0 0 2px; font-size: 18px; font-weight: 600; }
+    #info .sub { color: var(--muted); margin-bottom: 10px; }
+    #info dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; }
+    #info dt { color: var(--muted); }
+    #info dd { margin: 0; font-variant-numeric: tabular-nums; }
+    #info .tutup { position: absolute; top: 6px; right: 6px; }
+    #pengaturan { position: fixed; left: 16px; top: 70px; width: min(300px, calc(100vw - 32px)); padding: 14px 16px; display: none; }
+    #pengaturan label { display: block; margin: 8px 0 3px; color: var(--muted); font-size: 12px; }
+    #pengaturan input { width: 100%; background: rgba(255,255,255,0.06); color: var(--text); border: 1px solid var(--border);
+      border-radius: 7px; padding: 7px 9px; font: inherit; }
+    #pengaturan .baris { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+    #pengaturan .baris button { border: 1px solid var(--border); }
+    #pesan { color: var(--muted); font-size: 12px; margin-top: 8px; min-height: 1em; }
+    @media (max-width: 600px) {
+      #judul small { display: none; }
+      button { padding: 7px 8px; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="langit" aria-label="Peta langit interaktif"></canvas>
+
+  <div id="atas" class="bar">
+    <button id="judul" class="kotak" aria-expanded="false" aria-controls="pengaturan">
+      <b>Langit Malam</b><small id="lokasiTeks">Jakarta</small>
+    </button>
+    <input id="cari" list="daftarObjek" placeholder="Cari bintang, planet…" aria-label="Cari objek" autocomplete="off">
+    <datalist id="daftarObjek"></datalist>
+  </div>
+
+  <div id="pengaturan" class="kotak" role="dialog" aria-label="Pengaturan lokasi dan waktu">
+    <b>Lokasi</b>
+    <label for="lat">Lintang (°, utara +)</label>
+    <input id="lat" type="number" step="0.01" min="-90" max="90">
+    <label for="lon">Bujur (°, timur +)</label>
+    <input id="lon" type="number" step="0.01" min="-180" max="180">
+    <div class="baris">
+      <button id="pakaiGps">Pakai lokasi saya</button>
+      <button id="simpanLokasi">Simpan</button>
+    </div>
+    <label for="tanggal">Tanggal dan jam</label>
+    <input id="tanggal" type="datetime-local">
+    <div id="pesan"></div>
+  </div>
+
+  <div id="info" class="kotak" role="region" aria-live="polite">
+    <button class="tutup" id="tutupInfo" aria-label="Tutup">✕</button>
+    <h2 id="infoNama"></h2>
+    <div class="sub" id="infoJenis"></div>
+    <dl id="infoData"></dl>
+  </div>
+
+  <div id="bawah" class="bar">
+    <div class="kotak grup" role="group" aria-label="Kontrol waktu">
+      <button id="mundur" title="Mundur / perlambat" aria-label="Mundur">⏪</button>
+      <button id="jeda" title="Jeda" aria-label="Jeda">⏸</button>
+      <button id="maju" title="Maju / percepat" aria-label="Maju">⏩</button>
+      <button id="sekarang" title="Kembali ke waktu sekarang">Sekarang</button>
+    </div>
+    <div id="waktu" class="kotak"><span id="jamTeks">--:--</span><small id="lajuTeks">waktu nyata</small></div>
+    <div class="kotak grup" role="group" aria-label="Tampilan">
+      <button data-opsi="garisRasi" aria-pressed="true" title="Garis rasi bintang">Rasi</button>
+      <button data-opsi="nama" aria-pressed="true" title="Nama objek">Nama</button>
+      <button data-opsi="messier" aria-pressed="false" title="Galaksi, nebula, gugus (Messier)">Messier</button>
+      <button data-opsi="grid" aria-pressed="false" title="Garis alt-az">Grid</button>
+      <button data-opsi="atmosfer" aria-pressed="true" title="Atmosfer dan cahaya siang">Atmosfer</button>
+      <button data-opsi="tanah" aria-pressed="true" title="Tanah dan cakrawala">Tanah</button>
+    </div>
+  </div>
+
+  <script src="data.js"></script>
+  <script src="astro.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
